@@ -1,1 +1,149 @@
-<p>Lista de produse: de rezolvat</p>
+<div class="layout">
+  <main class="catalog">
+    <h1 class="catalog__title">Produse <span class="catalog__count">{{ products().length }} in catalog</span></h1>
+
+    <section class="tiles">
+      @for (p of products(); track p.id) {
+        <article class="tile">
+          <div class="tile__top">
+            <span class="tile__sku">
+              <span
+                class="swatch"
+                [class.swatch--calculatoare]="p.category === 'Calculatoare'"
+                [class.swatch--accesorii]="p.category === 'Accesorii'"
+                [class.swatch--bucatarie]="p.category === 'Bucatarie'"
+              ></span>
+              {{ p.sku }}
+            </span>
+          </div>
+
+          <h3 class="tile__name">{{ p.name }}</h3>
+          <p class="tile__meta">{{ p.category }} &middot; {{ p.weight }} g</p>
+
+          <div class="tile__price">
+            {{ p.price }} lei
+            @if (p.price >= 500) {
+              <span class="tag">Scump</span>
+            }
+          </div>
+
+          <div class="tile__actions">
+            <button type="button" class="btn btn--ghost btn--small" (click)="startEdit(p)">Editeaza</button>
+            <button type="button" class="btn btn--danger btn--small" (click)="remove(p.id)">Sterge</button>
+          </div>
+        </article>
+      } @empty {
+        <div class="empty">
+          <p class="empty__title">Niciun produs</p>
+          <p class="empty__text">Lista goala</p>
+        </div>
+      }
+    </section>
+
+    <section class="panel">
+      <h2 class="panel__title">{{ editedId() !== null ? 'Editare produs' : 'Produs nou' }}</h2>
+
+      <div class="form">
+        <div class="field">
+          <label class="field__label" for="sku">SKU <span class="field__req">*</span></label>
+          <input
+            id="sku"
+            #skuBox
+            class="field__input"
+            [class.field__input--invalid]="skuError()"
+            [value]="sku()"
+            (input)="sku.set(skuBox.value)"
+          />
+          @if (skuError()) {
+            <span class="field__error">{{ skuError() }}</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="name">Produs <span class="field__req">*</span></label>
+          <input
+            id="name"
+            #nameBox
+            class="field__input"
+            [class.field__input--invalid]="nameError()"
+            [value]="name()"
+            (input)="name.set(nameBox.value)"
+          />
+          @if (nameError()) {
+            <span class="field__error">{{ nameError() }}</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="category">Categorie <span class="field__req">*</span></label>
+          <input
+            id="category"
+            #categoryBox
+            class="field__input"
+            [class.field__input--invalid]="categoryError()"
+            [value]="category()"
+            (input)="category.set(categoryBox.value)"
+          />
+          @if (categoryError()) {
+            <span class="field__error">{{ categoryError() }}</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="price">Pret (lei)</label>
+          <input
+            id="price"
+            #priceBox
+            type="number"
+            class="field__input"
+            [class.field__input--invalid]="priceError()"
+            [value]="price()"
+            (input)="price.set(priceBox.valueAsNumber)"
+          />
+          @if (priceError()) {
+            <span class="field__error">{{ priceError() }}</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="weight">Greutate (g)</label>
+          <input
+            id="weight"
+            #weightBox
+            type="number"
+            class="field__input"
+            [class.field__input--invalid]="weightError()"
+            [value]="weight()"
+            (input)="weight.set(weightBox.valueAsNumber)"
+          />
+          @if (weightError()) {
+            <span class="field__error">{{ weightError() }}</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="stock">Stoc (buc)</label>
+          <input
+            id="stock"
+            #stockBox
+            type="number"
+            class="field__input"
+            [class.field__input--invalid]="stockError()"
+            [value]="stock()"
+            (input)="stock.set(stockBox.valueAsNumber)"
+          />
+          @if (stockError()) {
+            <span class="field__error">{{ stockError() }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="form__actions">
+        @if (editedId() !== null) {
+          <button type="button" class="btn btn--ghost" (click)="cancelEdit()">Renunta</button>
+        }
+        <button type="button" class="btn btn--primary" [disabled]="!canSave()" (click)="save()">Salveaza</button>
+      </div>
+    </section>
+  </main>
+</div>
