@@ -208,5 +208,172 @@ export class ProductList {
       this.resetForm();
     }
   }
+  totalPrice = computed<number>(() => this.products().reduce((sum, p) => sum + p.price, 0));
+
+  averagePrice = computed<number>(() => {
+    const list = this.products();
+    if (list.length === 0) return 0;
+    return Math.round((this.totalPrice() / list.length) * 10) / 10;
+  });
+
+  mostExpensive = computed<Product | null>(() => {
+    const list = this.products();
+    if (list.length === 0) return null;
+    return list.reduce((best, p) => (p.price > best.price ? p : best), list[0]);
+  });
+
+  categoryCounts = computed<{ category: string; count: number }[]>(() => {
+    const list = this.products();
+    const categories = list
+      .map((p) => p.category)
+      .filter((cat, index, arr) => arr.indexOf(cat) === index);
+
+    return categories.map((cat) => ({
+      category: cat,
+      count: list.filter((p) => p.category === cat).length,
+    }));
+  });
+  onlyActive = signal<boolean>(false);
+
+  visible = computed<Product[]>(() => {
+    if (this.onlyActive()) {
+      return this.products().filter((p) => p.active === true);
+    } else {
+      return this.products();
+    }
+  });
+
+  changeStock(id: number, delta: number): void {
+    this.products.update((list) =>
+      list.map((p) => {
+        if (p.id === id && p.stock + delta >= 0) {
+          return { ...p, stock: p.stock + delta };
+        }
+        return p;
+      }),
+    );
+  }
+
+  toggleActive(id: number): void {
+    this.products.update((list) =>
+      list.map((p) => {
+        if (p.id === id) {
+          return { ...p, active: !p.active };
+        }
+        return p;
+      }),
+    );
+  }
+
+  outOfStockCount = computed<number>(() => {
+    return this.products().filter((p) => p.stock === 0).length;
+  });
+  stockValue = computed<number>(() => {
+    return this.products().reduce((total, p) => total + p.price * p.stock, 0);
+  });
+
+  mostStock = computed<Product | null>(() => {
+    const list = this.products();
+    if (list.length === 0) {
+      return null;
+    }
+    return list.reduce((best, p) => {
+      if (p.stock > best.stock) {
+        return p;
+      }
+      return best;
+    });
+  });
+  cart = signal<{ id: number; name: string; price: number; qty: number }[]>([]);
+  addToCart(p: Product): void {
+    if (p.stock === 0 || !p.active) {
+      return;
+    }
+
+    const found = this.cart().find((x) => x.id === p.id);
+    if (found) {
+      if (found.qty < p.stock) {
+        const updatedCart = this.cart().map((x) => {
+          if (x.id === p.id) {
+            return { id: x.id, name: x.name, price: x.price, qty: x.qty + 1 };
+          }
+          return x;
+        });
+        this.cart.set(updatedCart);
+      }
+      return;
+    }
+
+    const newCart = this.cart().concat([{ id: p.id, name: p.name, price: p.price, qty: 1 }]);
+    this.cart.set(newCart);
+  }
+  removeFromCart(id: number): void {
+    const remaining: { id: number; name: string; price: number; qty: number }[] = [];
+    for (const x of this.cart()) {
+      if (x.id !== id) {
+        remaining.push(x);
+      }
+    }
+    this.cart.set(remaining);
+  }
+
+  changeCartQty(id: number, delta: number): void {
+    const prod = this.products().find((p) => p.id === id);
+    const maxStock = prod ? prod.stock : 0;
+
+    const updatedCart: { id: number; name: string; price: number; qty: number }[] = [];
+    for (const x of this.cart()) {
+      if (x.id === id) {
+        const nextQty = x.qty + delta;
+        if (nextQty > 0 && nextQty <= maxStock) {
+          updatedCart.push({ id: x.id, name: x.name, price: x.price, qty: nextQty });
+        } else if (nextQty > maxStock) {
+          updatedCart.push(x);
+        }
+      } else {
+        updatedCart.push(x);
+      }
+    }
+    this.cart.set(updatedCart);
+  }
+
+  cartCount = computed<number>(() => {
+    return this.cart().reduce((sum, x) => sum + x.qty, 0);
+  });
+  subtotal = computed<number>(() => {
+    return this.cart().reduce((sum, x) => sum + x.price * x.qty, 0);
+  });
+  discount = computed<number>(() => {
+    if (this.subtotal() > 1000) {
+      return Math.round(this.subtotal() * 0.1);
+    }
+    return 0;
+  });
+  totalToPay = computed<number>(() => {
+    return this.subtotal() - this.discount();
+  });
+  checkout(): void {
+    const itemsInCart = this.cart();
+
+    const updatedProducts = this.products().map((p) => {
+      const found = itemsInCart.find((x) => x.id === p.id);
+      if (found) {
+        const left = p.stock - found.qty;
+        return {
+          id: p.id,
+          sku: p.sku,
+          name: p.name,
+          category: p.category,
+          price: p.price,
+          weight: p.weight,
+          stock: left >= 0 ? left : 0,
+          active: p.active,
+        };
+      }
+      return p;
+    });
+    this.products.set(updatedProducts);
+    this.cart.set([]);
+  }
 }
 

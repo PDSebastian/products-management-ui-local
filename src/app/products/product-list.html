@@ -2,9 +2,75 @@
   <main class="catalog">
     <h1 class="catalog__title">Produse <span class="catalog__count">{{ products().length }} in catalog</span></h1>
 
+    <section>
+      <h2 class="section-label">Catalog</h2>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric__label">Valoare totala</div>
+          <div class="metric__value">{{ totalPrice() }} lei</div>
+        </div>
+        <div class="metric">
+          <div class="metric__label">Pret mediu</div>
+          <div class="metric__value">{{ averagePrice() }} lei</div>
+        </div>
+        <div class="metric">
+          <div class="metric__label">Cel mai scump</div>
+          @if (mostExpensive(); as top) {
+            <div class="metric__value">{{ top.price }} lei</div>
+            <div class="metric__note">{{ top.name }}</div>
+          } @else {
+            <div class="metric__value">-</div>
+          }
+        </div>
+        <div class="metric">
+          <div class="metric__label">Pe categorie</div>
+          @for (c of categoryCounts(); track c.category) {
+            <div class="metric__row"><span>{{ c.category }}</span><strong>{{ c.count }}</strong></div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-label">Stoc</h2>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric__label">Produse epuizate</div>
+          <div class="metric__value">{{ outOfStockCount() }}</div>
+        </div>
+        <div class="metric">
+          <div class="metric__label">Valoarea stocului</div>
+          <div class="metric__value">{{ stockValue() }} lei</div>
+        </div>
+        <div class="metric">
+          <div class="metric__label">Cele mai multe bucati</div>
+          @if (mostStock(); as topStock) {
+            <div class="metric__value">{{ topStock.stock }} buc</div>
+            <div class="metric__note">{{ topStock.name }}</div>
+          } @else {
+            <div class="metric__value">-</div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div class="toolbar__row">
+        <label class="check">
+          <input
+            #onlyActiveBox
+            type="checkbox"
+            [checked]="onlyActive()"
+            (change)="onlyActive.set(onlyActiveBox.checked)"
+          />
+          Doar produse active
+        </label>
+      </div>
+    </section>
+
     <section class="tiles">
-      @for (p of products(); track p.id) {
-        <article class="tile">
+      @for (p of visible(); track p.id) {
+        <article class="tile" [class.tile--muted]="!p.active">
           <div class="tile__top">
             <span class="tile__sku">
               <span
@@ -15,6 +81,14 @@
               ></span>
               {{ p.sku }}
             </span>
+
+            @if (p.stock === 0) {
+              <span class="pill pill--danger">Epuizat</span>
+            } @else if (p.stock < 5) {
+              <span class="pill pill--warn">Stoc redus</span>
+            } @else {
+              <span class="pill pill--ok">In stoc</span>
+            }
           </div>
 
           <h3 class="tile__name">{{ p.name }}</h3>
@@ -26,6 +100,43 @@
               <span class="tag">Scump</span>
             }
           </div>
+
+          <div class="tile__stock">
+            <div class="qty">
+              <button
+                type="button"
+                class="qty__btn"
+                aria-label="Scade stocul"
+                [disabled]="p.stock === 0"
+                (click)="changeStock(p.id, -1)"
+              >&minus;</button>
+              <span class="qty__value">{{ p.stock }} <small class="qty__unit">buc</small></span>
+              <button
+                type="button"
+                class="qty__btn"
+                aria-label="Creste stocul"
+                (click)="changeStock(p.id, 1)"
+              >+</button>
+            </div>
+
+            <button
+              type="button"
+              class="switch"
+              [class.switch--on]="p.active"
+              (click)="toggleActive(p.id)"
+            >
+              <span class="switch__track"></span>{{ p.active ? 'Activ' : 'Inactiv' }}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn--primary btn--block"
+            [disabled]="p.stock === 0 || !p.active"
+            (click)="addToCart(p)"
+          >
+            Adauga in cos
+          </button>
 
           <div class="tile__actions">
             <button type="button" class="btn btn--ghost btn--small" (click)="startEdit(p)">Editeaza</button>
@@ -146,4 +257,62 @@
       </div>
     </section>
   </main>
+
+  <aside class="cart">
+    <div class="cart__head">
+      <h2 class="cart__title">Colet in pregatire</h2>
+      <span class="cart__count">{{ cartCount() }} buc</span>
+    </div>
+
+    @if (cart().length > 0) {
+      <ul class="cart__lines">
+        @for (item of cart(); track item.id) {
+          <li class="cart__line">
+            <span class="cart__name">{{ item.name }}</span>
+            <button
+              type="button"
+              class="cart__remove"
+              aria-label="Scoate din cos"
+              (click)="removeFromCart(item.id)"
+            >
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+            </button>
+            <span class="cart__unit">{{ item.price }} lei / buc</span>
+            <div class="qty">
+              <button
+                type="button"
+                class="qty__btn"
+                aria-label="Scade cantitatea"
+                (click)="changeCartQty(item.id, -1)"
+              >&minus;</button>
+              <span class="qty__value">{{ item.qty }}</span>
+              <button
+                type="button"
+                class="qty__btn"
+                aria-label="Creste cantitatea"
+                (click)="changeCartQty(item.id, 1)"
+              >+</button>
+            </div>
+            <span class="cart__subtotal">{{ item.price * item.qty }} lei</span>
+          </li>
+        }
+      </ul>
+
+      <div class="cart__summary">
+        <div class="cart__row"><span>Total bucati</span><span>{{ cartCount() }}</span></div>
+        <div class="cart__row"><span>Subtotal</span><span>{{ subtotal() }} lei</span></div>
+        @if (subtotal() > 1000) {
+          <div class="cart__row cart__row--discount"><span>Reducere 10%</span><span>&minus;{{ discount() }} lei</span></div>
+        }
+        <div class="cart__total"><span>Total de plata</span><strong>{{ totalToPay() }} lei</strong></div>
+      </div>
+
+      <button type="button" class="btn btn--primary btn--block" (click)="checkout()">Finalizeaza comanda</button>
+    } @else {
+      <div class="empty">
+        <p class="empty__title">Cosul e gol</p>
+        <p class="empty__text">Adauga produse din catalog.</p>
+      </div>
+    }
+  </aside>
 </div>
